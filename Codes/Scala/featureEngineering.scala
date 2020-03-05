@@ -1,57 +1,59 @@
 package tabmo_project
-import java.text.SimpleDateFormat
 
-import net.liftweb.json.{JsonAST, parse}
+import java.text.SimpleDateFormat
+import net.liftweb.json.parse
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col, posexplode, regexp_replace, split, substring, when, _}
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import spray.json._
 import tabmo_project.cleaningData.{Spark, cleanData}
 import java.net.{HttpURLConnection, URL}
 
 object featureEngineering {
   def main(args: Array[String]): Unit = {
-    val lines:Int= 1000
-    val spark:SparkSession = Spark(4)
+    // val lines:Int= 1000
+    val spark:SparkSession = Spark()
     // import implicit in order to use $ operator
     import spark.implicits._
     // Clean the input data
-    val df:DataFrame = cleanData(spark)
-
+    val df:DataFrame = cleanData(spark).repartition(numPartitions = 4)
+      .filter(condition=$"creative_type" === "banner")
+      .cache()
     val df_temp:DataFrame = apiPreparation(spark, df)
+
     // IAB vectorization
-    val rdd:RDD[Row] = getApisDataRDD(df_temp.limit(lines))
+    val rdd:RDD[Row] = getApisDataRDD(spark,df_temp)
 
     // a merger ensemble
-
     val df_sortie: DataFrame = fromRDDtoDF(spark, rdd)
-    val df_os_info: DataFrame = getFullOsInfo(spark, df.limit(lines))
-    val df_iab: DataFrame = getIabTranspose(spark, df.limit(lines))
-    val df_other_features: DataFrame = df.limit(lines).select($"auction_id", $"click", $"exchange",
-      $"app_or_site",$"has_gps", $"device_type", $"connection_type", $"has_ifa",$"win_price",$"win_price_loc",
+    val df_os_info: DataFrame = getFullOsInfo(spark, df)
+    val df_iab: DataFrame = getIabTranspose(spark, df)
+    val df_other_features: DataFrame = df.select(cols=$"auction_id", $"click", $"exchange",
+      $"app_or_site",$"has_gps", $"device_type", $"connection_type", $"creative_size", $"has_ifa",$"win_price",$"win_price_loc",
       $"bidder_name",$"schedule_start",$"schedule_end")
 
 
     // Join all the features
     val df_joined_data:DataFrame = df_other_features
-      .join(df_sortie,Seq("auction_id"), joinType = "full")
-      .join(df_iab,Seq("auction_id"), joinType = "full")
-      .join(df_os_info,Seq("auction_id"), joinType = "full")
-
+      .join(df_sortie,Seq("auction_id"))
+      .join(df_iab,Seq("auction_id"))
+      .join(df_os_info,Seq("auction_id"))
     // Final operation on date data
     val output_df: DataFrame = getDateFeatures(spark, df_joined_data)
-
-    output_df.coalesce(numPartitions = 1)
+    val t0 = System.nanoTime()
+    output_df.coalesce(numPartitions = 4)
       .write.format(source="csv")
       .option("header","true")
+      .mode("overWrite")
       .csv(path="/home/joseph/Bureau/Master/Ter/data/final_example_data.csv")
 
+    val t1 = System.nanoTime()
+    println("Elapsed time: " + (t1 - t0)/ 1000000000  + "s")
   }
 
   def get(url: String,
-          connectTimeout: Int = 5000,
-          readTimeout: Int =  5000,
+          connectTimeout: Int = 30000,
+          readTimeout: Int =  30000,
           requestMethod: String = "GET"):String=
   {
     val connection = new URL(url).openConnection.asInstanceOf[HttpURLConnection]
@@ -65,23 +67,16 @@ object featureEngineering {
   }
 
   @annotation.tailrec
-  def recursiveAPIRequest(url_link: String,nbTry:Int): spray.json.JsObject = {
+  def recursiveAPIRequest(url_link: String): String = {
     try
       {
-        if (nbTry>0){
-          val fetch:String = get(url_link)
-          val result:spray.json.JsObject = fetch.parseJson.asJsObject()
+          val result:String = get(url_link)
           result
-        }
-        else{
-          val error_result = """{"countryCode":"error","countryName":"error","zoneName":"error","toTimestamp":1582123375}"""
-          error_result.parseJson.asJsObject()
-        }
       }
     catch
       {
         case _: java.io.IOException =>
-          recursiveAPIRequest(url_link,nbTry=nbTry-1)
+          recursiveAPIRequest(url_link)
       }
   }
 
@@ -100,10 +95,6 @@ object featureEngineering {
       (data ,columnName) =>
         data.withColumn(columnName, when(col(columnName) > 1, value=1).otherwise(col(columnName)))}
 
-    // Merging data in order to get all informations about app & sites
-    // val finalDataIAB:DataFrame = finalDataOneRow
-    //  .drop(colName="site_or_app_categories")
-    //  .join(iab_df,Seq("auction_id"), joinType = "left")
     output_df
   }
 
@@ -135,31 +126,28 @@ object featureEngineering {
     output_df
   }
 
-  def getApisDataRDD(df: DataFrame): RDD[Row] = {
-    val if_warning_api_date: JsonAST.JValue  = parse(""" {"warning": "1970-01-01 00:00:00"} """)
-    val output_rdd:RDD[Row] = df.rdd.map(row => {
+  def getApisDataRDD(spark: SparkSession, df: DataFrame): RDD[Row] = {
+
+    val output_rdd:RDD[Row] = df.coalesce(numPartitions=4).rdd.map(row => {
       val fetch1: String =String.format("http://vip.timezonedb.com//v2.1/get-time-zone?" +
         "key=UV0J0ZY60BVC&format=json&by=position&lat=%s&lng=%s",
         row.getAs[String](fieldName="latitude"), row.getAs[String](fieldName="longitude"))
-      val result1: spray.json.JsObject = recursiveAPIRequest(fetch1,nbTry = 2)
-      val country_code:String = result1.fields("countryCode").toString.dropRight(1).substring(1)
-      val country_name:String = result1.fields("countryName").toString.dropRight(1).substring(1)
-      val zone_name:String = result1.fields("zoneName").toString.dropRight(1).substring(1)
+      val result1: String = recursiveAPIRequest(fetch1)
+      val country_code:String = (parse(result1) \\ "countryCode").values.toString
+      val country_name:String = (parse(result1) \\ "countryName").values.toString
+      val zone_name:String = (parse(result1) \\ "zoneName").values.toString
       val continent:String = zone_name.split("/")(0)
       val city:String = if (zone_name.split("/").length >1) zone_name.split("/")(1) else
         zone_name.split("/")(0)
       val fetch2: String = String.format("http://vip.timezonedb.com//v2.1/convert-time-zone?key=UV0J0ZY60BVC&format=" +
         "json&from=Europe/Paris&to=%s&time=%s",
         zone_name, row.getAs[String](fieldName="timestamp"))
-      val result2: spray.json.JsObject = recursiveAPIRequest(fetch2,nbTry = 2)
+      val result2: String = recursiveAPIRequest(fetch2)
       val df = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss")
-      val unix_time:String = result2.fields("toTimestamp").toString()
-      val fetch3: String = String.format("https://restcountries.eu/rest/v2/name/%s", country_name)
-      val result3: String = if (zone_name.equals("error")) "error" else get(url=fetch3)
-      val json_parsed: JsonAST.JValue = if (result3.equals("error")) if_warning_api_date \\ "warning" else
-        parse(result3)(0)
-      val country_language:String = if (result3.equals("error")) (json_parsed \\ "warning").values.toString else
-        (json_parsed \\ "languages" \\ "iso639_1").values.toString
+      val unix_time:String = (parse(result2) \\ "toTimestamp").values.toString
+      val fetch3: String = if (country_name.equals("South Korea")) "https://restcountries.eu/rest/v2/name/Korea" else  String.format("https://restcountries.eu/rest/v2/name/%s", country_name)
+      val result3: String = recursiveAPIRequest(fetch3)
+      val country_language:String = (parse(result3)(0) \\ "languages" \\ "iso639_1").values.toString
         Row(row.getAs[String](fieldName="auction_id"),
             row.getAs[String](fieldName="device_language"),
             country_language,
@@ -168,7 +156,7 @@ object featureEngineering {
             country_code,
             country_name,
             city,
-            if (unix_time.equals("0")) df.format(0) else df.format(unix_time.toInt * 1000L)
+            df.format(unix_time.toInt * 1000L)
         )
     })
     output_rdd
