@@ -6,7 +6,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col, posexplode, regexp_replace, split, substring, when, _}
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import tabmo_project.cleaningData.{Spark, cleanData}
+import tabmo_project.cleaningData.{Spark, cleanData, readData}
 import java.net.{HttpURLConnection, URL}
 
 object featureEngineering {
@@ -16,13 +16,17 @@ object featureEngineering {
     // import implicit in order to use $ operator
     import spark.implicits._
     // Clean the input data
-    val df:DataFrame = cleanData(spark).repartition(numPartitions = 4)
-      .filter(condition=$"creative_type" === "banner")
-      .cache()
+    val df:DataFrame = // cleanData(spark).repartition(numPartitions = 4)
+      // .filter(condition=$"creative_type" === "banner")
+      readData(spark= spark, fileToRead =  "/media/joseph/OS/Users/joaka/Documents/Master MIASHS 1/TER/terWork/Data/" +
+        "exportedData/clicked_data_one_month", form= "csv")
+        .cache()
+
+    val auction_id_list: DataFrame = df.groupBy($"auction_id").count().filter($"count" === 1).drop("count")
     val df_temp:DataFrame = apiPreparation(spark, df)
 
     // IAB vectorization
-    val rdd:RDD[Row] = getApisDataRDD(spark,df_temp)
+    val rdd:RDD[Row] = getApisDataRDD(spark, df_temp)
 
     // a merger ensemble
     val df_sortie: DataFrame = fromRDDtoDF(spark, rdd)
@@ -34,18 +38,22 @@ object featureEngineering {
 
 
     // Join all the features
-    val df_joined_data:DataFrame = df_other_features
-      .join(df_sortie,Seq("auction_id"))
-      .join(df_iab,Seq("auction_id"))
-      .join(df_os_info,Seq("auction_id"))
+    val df_joined_data:DataFrame = auction_id_list
+      .join(df_other_features, Seq("auction_id"), joinType = "left")
+      .join(df_sortie, Seq("auction_id"), joinType = "left")
+      .join(df_iab, Seq("auction_id"), joinType = "left")
+      .join(df_os_info, Seq("auction_id"),joinType = "left")
+
+
     // Final operation on date data
     val output_df: DataFrame = getDateFeatures(spark, df_joined_data)
     val t0 = System.nanoTime()
-    output_df.coalesce(numPartitions = 4)
+    output_df
       .write.format(source="csv")
       .option("header","true")
       .mode("overWrite")
-      .csv(path="/home/joseph/Bureau/Master/Ter/data/final_example_data.csv")
+      .csv(path="/media/joseph/OS/Users/joaka/Documents/Master MIASHS 1/TER/" +
+        "terWork/Data/exportedData/final_clicked_data.csv")
 
     val t1 = System.nanoTime()
     println("Elapsed time: " + (t1 - t0)/ 1000000000  + "s")
@@ -128,12 +136,11 @@ object featureEngineering {
 
   def getApisDataRDD(spark: SparkSession, df: DataFrame): RDD[Row] = {
 
-    val output_rdd:RDD[Row] = df.coalesce(numPartitions=4).rdd.map(row => {
+    val output_rdd:RDD[Row] = df.rdd.map(row => {
       val fetch1: String =String.format("http://vip.timezonedb.com//v2.1/get-time-zone?" +
         "key=UV0J0ZY60BVC&format=json&by=position&lat=%s&lng=%s",
         row.getAs[String](fieldName="latitude"), row.getAs[String](fieldName="longitude"))
       val result1: String = recursiveAPIRequest(fetch1)
-      val country_code:String = (parse(result1) \\ "countryCode").values.toString
       val country_name:String = (parse(result1) \\ "countryName").values.toString
       val zone_name:String = (parse(result1) \\ "zoneName").values.toString
       val continent:String = zone_name.split("/")(0)
@@ -153,7 +160,6 @@ object featureEngineering {
             country_language,
             if (country_language.equals(row.getAs[String](fieldName="device_language"))) true else false,
             continent,
-            country_code,
             country_name,
             city,
             df.format(unix_time.toInt * 1000L)
@@ -165,12 +171,11 @@ object featureEngineering {
 def fromRDDtoDF(spark: SparkSession, rdd: RDD[Row]): DataFrame = {
 
   val schema = new StructType()
-    .add(StructField("Auction_id", dataType =  StringType, nullable = true))
+    .add(StructField("auction_id", dataType =  StringType, nullable = true))
     .add(StructField("Device_language", dataType = StringType, nullable = true))
     .add(StructField("Country_language", dataType =  StringType, nullable = true))
     .add(StructField("Device_lg_Equals_country_lg", dataType =  BooleanType, nullable = true))
     .add(StructField("Continent", dataType =  StringType, nullable = true))
-    .add(StructField("Country_code", dataType =  StringType, nullable = true))
     .add(StructField("Country_name", dataType =  StringType, nullable = true))
     .add(StructField("City", dataType =  StringType, nullable = true))
     .add(StructField("Timestamp", dataType =  StringType, nullable = true))
@@ -182,10 +187,11 @@ def fromRDDtoDF(spark: SparkSession, rdd: RDD[Row]): DataFrame = {
 
   def getFullOsInfo(spark:SparkSession, df: DataFrame): DataFrame = {
     import spark.implicits._
-    val output_df:DataFrame = df.select(cols=$"auction_id", $"os_version", $"os")
-      .withColumn(colName="os_version",when($"os_version".isNotNull, value = substring_index(str=$"os_version",delim=".",count=1))
+    val output_df:DataFrame = df
+      .select(cols=$"auction_id", $"os_version", $"os")
+      .withColumn(colName="os_version",when($"os_version".isNotNull, value = substring_index(str=$"os_version", delim=".", count=1))
         .otherwise(value="unknown"))
-      .withColumn(colName="fullOsInfo",concat(exprs=$"os", lit(literal="_"), $"os_version"))
+      .withColumn(colName="fullOsInfo", concat(exprs=$"os", $"os_version"))
       .drop(colNames="os","os_version")
     output_df
   }

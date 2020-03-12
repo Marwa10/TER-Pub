@@ -18,8 +18,10 @@ object cleaningData {
       .config("spark.master", "local[8]")
       .getOrCreate()
     spark.conf.set("spark.sql.shuffle.partitions", numPartitions)
-    spark.conf.set("spark.sql.autoBroadcastJoinThreshold", 1*1024*1024*1024)
-    spark.conf.set("spark.executor.memory","2g")
+    spark.conf.set("spark.executor.memory",-1)
+    spark.conf.set("spark.driver.memory",-1)
+    spark.conf.set("spark.sql.broadcastTimeout",-1)
+    spark.conf.set("spark.sql.autoBroadcastJoinThreshold", -1)
     spark
   }
 
@@ -35,7 +37,7 @@ object cleaningData {
     // Load implicits module in order to use the $ operator
     val df_temp: DataFrame = df.drop(colName="creative_size")
     import spark.implicits._
-    val columnsNames: List[String] = df_temp.columns.toList
+    val columnsNames: List[String] = df_temp  .columns.toList
     val newColumnsNames: List[String] = columnsNames.map(v => v.replace("event_",""))
 
     // Dropping useless columns
@@ -51,8 +53,9 @@ object cleaningData {
     // Mapping null values for boolean
     val map = Map("click" -> "0",
       "Device_language" -> "unknown",
-      "connection_type" -> "unknown",
-      "hash_deal_identifier" ->"0")
+      "connection_type" -> "unknown"//,
+    //  "hash_deal_identifier" ->"0"
+    )
 
     val output_df: DataFrame = df.na.fill(map)
     output_df
@@ -73,9 +76,9 @@ object cleaningData {
       .join(df,Seq("auction_id"),joinType="left")
       .filter(condition= $"type" ==="win")
       .drop(colNames="win","type")
-      .withColumn(colName = "hash_deal_identifier",when($"hash_deal_identifier".isNotNull ,value=1)
-        .otherwise(col(colName="hash_deal_identifier"))
-      )
+      //.withColumn(colName = "hash_deal_identifier",when($"hash_deal_identifier".isNotNull ,value=1)
+      //  .otherwise(col(colName="hash_deal_identifier"))
+      //)
     output_df
   }
 
@@ -114,9 +117,9 @@ object cleaningData {
     df
   }
 
-  def cleanData(spark: SparkSession): DataFrame = {
+  def cleanData(spark: SparkSession, fileToRead: String = "/home/joseph/IdeaProjects/data_science/ressources/df_tabmo_oneWeek.csv", form: String = "csv"): DataFrame = {
     // val listOfFiles: List[String] = getListOfFiles(dir = "/home/joseph/IdeaProjects/data_science/ressources")
-    val new_df: DataFrame = readData(spark, fileToRead ="/home/joseph/IdeaProjects/data_science/ressources/df_tabmo_oneWeek.csv",form= "csv")
+    val new_df: DataFrame = readData(spark,fileToRead, form= form)
     val new_df_cleaning: DataFrame = removeColumns(spark,new_df)
     val new_df_one_row_per_id: DataFrame = oneRowPerAuction(spark: SparkSession, new_df_cleaning)
     val output_df: DataFrame = mappingNaValues(new_df_one_row_per_id)
