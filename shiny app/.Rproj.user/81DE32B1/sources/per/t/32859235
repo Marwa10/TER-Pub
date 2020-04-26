@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1576691394773.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "32859235",
+    "lastKnownWriteTime" : 4294967296,
+    "last_content_update" : 1576691394773,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "D0507857",
+        "caption" : "join_jour",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=join_jour&cache_key=D0507857",
+        "displayedObservations" : 43,
+        "environment" : "",
+        "object" : "join_jour",
+        "preview" : 0,
+        "totalObservations" : 43,
+        "variables" : 5
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

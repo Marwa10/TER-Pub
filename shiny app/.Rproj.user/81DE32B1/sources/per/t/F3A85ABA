@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1576681811244.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2537970863",
+    "id" : "F3A85ABA",
+    "lastKnownWriteTime" : 1581675365,
+    "last_content_update" : 1581675365688,
+    "path" : "~/Desktop/ter/Shiny_ter/TER/ui.R",
+    "project_path" : "ui.R",
+    "properties" : {
+        "cursorPosition" : "135,0",
+        "scrollLine" : "121"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -1,0 +1,45 @@
+img{
+  max-width: 100%;
+  height: auto;
+  
+}
+
+.main-header{
+  background-color: #F5627C;
+}
+  
+
+.main-header .logo {
+  font-family: "Georgia", Times, "Times New Roman", serif;
+  font-weight: bold;
+  font-size: 29px;
+}
+
+.form-group.shiny-input-container {
+  width: 60px;
+  font-size: 18pt;
+  }
+  
+  
+  h3{
+      font-weight: bold;
+  }
+  
+  
+  
+  p{
+    font-size: 20px;
+  }
+
+
+.resize {
+  max-width:30%;
+  max-height:30%;
+}
+
+.color_box{
+  #background: #222d34;
+                }
+
+
+/*Photo by Darren Chan on Unsplash*/
