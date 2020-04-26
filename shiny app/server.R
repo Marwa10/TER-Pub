@@ -301,11 +301,11 @@ shinyServer(function(input, output) {
     click
   })
 
-  
-  output$map_win <- renderLeaflet({
-    win
-  })
-  
+  # 
+  # output$map_win <- renderLeaflet({
+  #   win
+  # })
+  # 
   
   
   

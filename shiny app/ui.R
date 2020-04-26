@@ -4,15 +4,15 @@ library(leaflet)
 
 
 
-header <- dashboardHeader( title = "Ter Publicité")
+header <- dashboardHeader( title = "TER Publicité")
 
 sidebar <- dashboardSidebar(
   collapsed = TRUE,
   sidebarMenu(
-  menuItem("Accueil", tabName = "acceuil", icon = icon("dashboard")),
+  menuItem("Accueil", tabName = "acceuil", icon = icon("fas fa-home")),
   menuItem("Présentation", tabName = "presentation", icon = icon("far fa-address-card")),
-  menuItem("Axe user", tabName = "user", icon = icon("far fa-chart-bar")),
-  menuItem("Axe creative", tabName = "creative", icon = icon("th")),
+  menuItem("Axe utilisateur", tabName = "user", icon = icon("far fa-chart-bar")),
+  menuItem("Axe créative", tabName = "creative", icon = icon("far fa-chart-bar")),
   menuItem("Cartographie", tabName = "carto", icon =  icon("fas fa-map-marked-alt")),
   menuItem("Modèles", tabName = "modeles", icon = icon("fas fa-laptop-code"))
   )
@@ -31,14 +31,14 @@ body <- dashboardBody(
  
     ),
     tabItem(tabName = "presentation",
+            width = 12,
             box(
+              width = 12,
               fluidRow(
                 img(src ="logo_miashs.png", align = 'left', class = 'resize'),
                 img(src = "logo_tabmo.png",align = 'right', class = 'resize')
               ),
-  
-              width = 12,
-              h3("Membre du groupe:"),p("Joseph AKA BROU, Marwa ELATRACHE, Caroline Martin, Tharshika NAGARATNAM", "Omar SECK"),
+              h3("Membre du groupe:"),p("Joseph AKA BROU, Marwa ELATRACHE, Caroline MARTIN, Tharshika NAGARATNAM  et Omar SECK"),
               hr(),
               h3("Encadrants:"), p("Faustine BOUSQUET, El hassan DAOUDI, Samy ZAROUR"),
               hr(),
@@ -46,7 +46,7 @@ body <- dashboardBody(
               hr(),
               h3("Objectif"),p("Prédiction des cliques"),
               hr(),
-              h3("Outils utilisés:"), p("Python, R, Trello, Google docs, Google collab")
+              h3("Outils utilisés:"), p("Python, R, Trello, Github, Google docs, Google colab, Scala,  Slack")
               
             )
             
@@ -135,21 +135,22 @@ body <- dashboardBody(
               
             ),
     tabItem(tabName = "carto",
-            fluidRow(
               box(
                 width = 12,
-                leafletOutput("map_click")
+              #height = "600px",
+                leafletOutput("map_click", height = "600px")
               )
           
-            ),
-            fluidRow(
-              box(
-                width = 12,
-                leafletOutput("map_win")
-              )
-              
-              
-            )
+            # ),
+            # fluidRow(
+            #   box(
+            #     width = 12,
+            #     leafletOutput("map_win")
+            #   )
+            #   
+            #   
+            #
+            
             
       
     ),
