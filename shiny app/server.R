@@ -1,18 +1,24 @@
 library(shiny)
 library(dplyr)
-library(lubridate)
-library(ggplot2)
-library(countrycode)
+#ibrary(lubridate)
+
+#library(countrycode)
 library(DT)
 library(scales)
 library(JLutils)
-library(leaflet)
+library(ggplot2)
+library(plotly)
 source("map.R")
 
 
 shinyServer(function(input, output) {
+
+  df = read.csv("data/one_month_data.csv")
+
+  
+  
+
   data = read.csv("data/data_tab.csv", stringsAsFactors = FALSE)
-  df = read.csv("data/oneWeekfullCleanedData.csv")
   data = data %>% 
     filter(event_country != '')
   
@@ -38,60 +44,58 @@ shinyServer(function(input, output) {
   
 
   
-  ##Axe User
+  ### NEW DATASET###
+  total_clicks = sum(df$click)
+  
 
-  
-  clique = clicks %>% 
-    group_by(hour = hour(X..timestamp....click..), event_country) %>% 
-    dplyr::summarise(total_click = n())
-  
-  
-  win = data %>% 
-    group_by(hour = hour(X..timestamp....win..), event_country) %>% 
-    dplyr::summarise(total_win = n())
-  
+  test = df %>% 
+    dplyr::group_by(Country_name,
+                    country_code,
+                    Timestamp_hour) %>% 
+    dplyr::summarise(total_click = sum(click),
+                     total_win = dplyr::n(),
+                     taux = round(total_click/total_clicks,3)) %>% 
+    filter(total_click >0)
   
   
-  join = inner_join(clique, win , by = c("hour" = "hour", "event_country" = "event_country"))
-  
-  join$pourcentage = join$total_click/join$total_win
-  
-  
-  
-  output$plot <- renderPlot({
+
+  output$plot <- renderPlotly({
     if(input$s2 == "All" ){
-      df = join
+      to_use = test
     }else{
-      df = join %>% 
-        filter(event_country == input$s2) 
+      to_use = test %>% 
+        filter(country_code == input$s2) 
     }
-
-    ggplot(df, aes_string(x = df$hour , y = df$pourcentage))+
-      geom_line(aes(color = df$event_country)) +
-      labs(y=paste("Proportion des cliques"), x= "Heure", color ="Pays") +
-      scale_y_continuous(labels = percent)
+    
+   ggplotly(ggplot(to_use, aes_string(x = to_use$Timestamp_hour  , y =to_use$taux ))+
+      geom_line(aes(color = to_use$country_code)) +
+      labs(y=paste("Proportion des clics"), x= "Heure", color ="Pays") +
+      scale_y_continuous(labels = percent)) 
   })
   
+
   
   
-  
-  
-  
-  output$plot5 <- renderPlot({
+
+  output$plot5 <- renderPlotly({
     if(input$s2 == "All" ){
-      d_plot5 = data
+      d_plot5 = df %>% 
+        dplyr::group_by(country_code) %>% 
+        dplyr::summarise(total = dplyr::n()) %>% 
+        filter(total>50)
     }else{
-      d_plot5 = filter(data, event_country %in% input$s2 )
+      d_plot5 = filter(df, country_code %in% input$s2 ) %>% 
+        dplyr::group_by(country_code) %>% 
+        dplyr::summarise(total = dplyr::n())
     }
-    ggplot(d_plot5, aes(event_country)) +
-      geom_bar(position= "identity", fill = '#8193e6') +
-      labs(x = "Pays", y = "Nombre de win")
+    ggplotly(ggplot(d_plot5, aes(reorder(country_code, -total), total)) +
+      geom_bar(stat= "identity", fill = '#8193e6') +
+      labs(x = "Pays", y = "Nombre de win"))
       
   })
   
   
   
-
 
   output$plot2 <- renderPlot({
     if(input$s2 == "All" ){
@@ -99,7 +103,7 @@ shinyServer(function(input, output) {
     }else{
       dd = filter(data, event_country %in% input$s2 )
     }
-    ggplot(dd, aes(as.factor(X..Event_type1....click..), fill = event_os)) +
+   ggplot(dd, aes(as.factor(X..Event_type1....click..), fill = event_os)) +
       geom_bar(position= "fill") +
       stat_fill_labels() +
       labs(x = "Clique", y ="Pourcentage de clicks", fill = "Type d'OS") +
@@ -109,49 +113,44 @@ shinyServer(function(input, output) {
   
   
   
-  output$plot3 <- renderPlot({
+  output$plot3 <- renderPlotly({
     if(input$s2 == "All" ){
-      dd= data
+      dd= df
     }else{
-      dd = filter(data, event_country %in% input$s2 )
+      dd = filter(df, country_code %in% input$s2 )
     }
-    ggplot(dd, aes(as.factor(X..Event_type1....click..), fill = device_type_name)) +
+    ggplotly(ggplot(dd, aes(as.factor(click), fill = device_type_name)) +
       geom_bar(position= "fill") +
       stat_fill_labels() +
       labs( x = "Clique", y ="Pourcentage de click", fill = "Type d'appareil") +
-      scale_y_continuous(labels = percent)
+      scale_y_continuous(labels = percent))
       
   })
   
-  click_jour = clicks %>% 
-    group_by(day, event_country) %>% 
-    dplyr::summarise(total_click = n())
   
   
-  win_jour = data %>% 
-    group_by(day, event_country) %>% 
-    dplyr::summarise(total_win = n())
-  
-  
-  
-  join_jour = inner_join(click_jour, win_jour , by = c("day" = "day", "event_country" = "event_country"))
-  
-  join_jour$pourcentage = join_jour$total_click/join_jour$total_win
+  jours = df %>% 
+    dplyr::group_by(Country_name,
+                    country_code,
+                    day) %>% 
+    dplyr::summarise(total_click = sum(click),
+                     total_win = dplyr::n(),
+                     taux = round(total_click/total_clicks,4) *100) %>% 
+    filter(total_click>0)
   
   
   
-  
-  output$plot6 <- renderPlot({
+  output$plot6 <- renderPlotly({
     if(input$s2 == "All"){
-      data_jour = join_jour
+      data_jour = jours
     }else{
-      data_jour = join_jour %>% 
-        filter(event_country == input$s2)
+      data_jour = jours %>% 
+        filter(country_code == input$s2)
     }
-    ggplot(data_jour, aes(x=day, y=pourcentage, fill = event_country)) +
+    ggplotly(ggplot(data_jour, aes(x=day, y=taux, fill = country_code)) +
       geom_bar(stat='identity')+
-      labs(y ="Proportion des cliques", x = "Jours de la semaine") +
-      scale_y_continuous(labels = percent)
+      labs(y ="Proportion des clics", x = "Jours de la semaine") +
+      scale_y_continuous(labels = percent))
   })
   
   
@@ -160,29 +159,11 @@ shinyServer(function(input, output) {
   
   
  
- ##total = device_make %>% 
-  ##        group_by(event_country, event_device_make) %>% 
-   ##       summarise(total_s = sum(total))
-  
-  #join = right_join(device_make , total, by = c("event_country", "event_device_make"))
-  #join$pourcentage = round(join$total/ join$total_s * 100)
+
           
   
   
-  
-  
 
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   #Axe Creative
   
   
@@ -243,10 +224,10 @@ shinyServer(function(input, output) {
   
   output$plot4 <- renderPlot({
     if(input$s4 == "All"){
-      creative = data
+      creative = df
     }else{
-      creative = data %>% 
-        filter(event_country == input$s4)
+      creative = df %>% 
+        filter(country_code == input$s4)
     }
     
     
@@ -290,15 +271,13 @@ shinyServer(function(input, output) {
       labs(x = "prix de l'enchère", y = "Pourcentage de cliques", fill = "Pays") +
       geom_bar(stat='identity')+
       scale_y_continuous(labels = percent)
-    
-    
-    
+  
   })
   
   
   
   output$map_click  <- renderLeaflet({
-    click
+    click_map
   })
 
   # 

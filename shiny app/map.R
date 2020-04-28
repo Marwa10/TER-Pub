@@ -11,20 +11,49 @@ library(viridis)
 
 #df = read.csv("data/oneWeekfullCleanedData.csv")
 
-df = read.csv("data/data_one_month_cleaned_over_sampling.csv")
+df_map = read.csv("data/one_month_data.csv")
 
-df$country_code = countrycode(df$Country_name, 
-                                    origin = 'country.name',
-                                    destination = 'iso3c')
+# df$country_code = countrycode(df$Country_name, 
+#                                     origin = 'country.name',
+#                                     destination = 'iso3c')
+# 
+# 
+# 
+# 
+# 
+# df$device_type_name = ifelse(df$device_type == "1", "Mobile/Tablet",
+#                              ifelse(df$device_type == "2",  "Personal Computer",
+#                                     ifelse(df$device_type == "3", "Connected TV",
+#                                            ifelse(df$device_type == "4" , "Phone",
+#                                                   ifelse(df$device_type == "5", "Tablet",
+#                                                          ifelse(df$device_type == "6", "Connected Device",
+#                                                                 ifelse(df$device_type == "7", "Set Top Box",
+#                                                                        ifelse(df$device_type == "unknown", "Unknown","Unknown"))))))))
+# 
+# 
+# df$day = ifelse(df$Timestamp_DayOfWeek == 1, "Lundi",
+#                 ifelse(df$Timestamp_DayOfWeek == 2, "Mardi",
+#                        ifelse(df$Timestamp_DayOfWeek == 3, "Mercredi",
+#                               ifelse(df$Timestamp_DayOfWeek == 4, "Jeudi",
+#                                      ifelse(df$Timestamp_DayOfWeek == 5, "Vendredi",
+#                                             ifelse(df$Timestamp_DayOfWeek == 6, "Samedi",
+#                                                    ifelse(df$Timestamp_DayOfWeek == 7, "Dimanche", "Erreur")))))))
+# 
+# 
+# df$day <- factor(df$day, levels = c("Lundi", "Mardi", "Mercredi","Jeudi", "Vendredi", "Samedi", "Dimanche"))
+# write.csv(df, 'one_month_data.csv')
 
 
 
-nb_click = df %>% 
+
+total_clicks  = sum(df_map$click)
+
+nb_click = df_map %>% 
   dplyr::group_by(Country_name,
                    country_code) %>% 
   dplyr::summarise(total_click = sum(click),
                    total_win = dplyr::n(),
-                   taux = round(total_click/total_win,2) *100) %>% 
+                   taux = round(total_click/total_clicks,3) *100) %>% 
   filter(total_click>0)
 
 
@@ -58,10 +87,10 @@ world_spdf <- merge(world_spdf,nb_click ,by.x="ISO3", by.y = "country_code", all
 
 
 
-bins_click <- c(1,25,50,100)
+bins_click <- c(1,10,50,100, 500, max(nb_click$total_click))
 
 palette_clicks <- colorBin(palette = "Reds",
-                           domain=world_spdf@data$taux,
+                           domain=world_spdf@data$total_click,
                            na.color="transparent",
                            bins=bins_click)
 
@@ -69,9 +98,9 @@ palette_clicks <- colorBin(palette = "Reds",
 
 text_click <- paste(
   "Pays: ", world_spdf@data$NAME,"<br/>", 
-  "Nombre de cliques: ", world_spdf@data$total_click, "<br/>", 
+  "Nombre de clics: ", world_spdf@data$total_click, "<br/>", 
   "Nombre de win: ", world_spdf@data$total_win, "<br/>",
-  "Taux de cliques: ", world_spdf@data$taux, "%", "<br/>",
+  "Taux de clics: ", world_spdf@data$taux, "%", "<br/>",
   sep="") %>%
   lapply(htmltools::HTML)
 
@@ -79,11 +108,11 @@ text_click <- paste(
 
 # Basic choropleth with leaflet?
 
-click <- leaflet(world_spdf) %>% 
+click_map <- leaflet(world_spdf) %>% 
   addTiles()  %>% 
   setView( lat=10, lng=0 , zoom=2) %>%
   addPolygons( 
-    fillColor = ~palette_clicks(taux), 
+    fillColor = ~palette_clicks(total_click), 
     stroke=TRUE, 
     fillOpacity = 0.9, 
     color="white", 
@@ -96,13 +125,12 @@ click <- leaflet(world_spdf) %>%
     )
   ) %>%
   addLegend( pal=palette_clicks,
-             values=~taux,
+             values=~total_click,
              opacity=0.9,
-             title = "Taux de cliques",
+             title = "Nombre de clics",
              position = "bottomleft" )
 
 
-click  
 
 
 
@@ -151,3 +179,60 @@ click
 # 
 # win 
 # 
+# 
+# ggplotly(ggplot(df, aes(df$country_code)) +
+#   geom_bar(position= "identity", fill = '#8193e6') +
+#   labs(x = "Pays", y = "Nombre de win")+
+#     scale_x_discrete(limits = df$country_code))
+
+
+# win = df %>% 
+#   dplyr::group_by(country_code) %>% 
+#   dplyr::summarise(total = dplyr::n())
+# 
+# 
+# ggplot(win, aes(x = country_code, y= total)) +
+#   geom_bar(stat= "identity", fill = '#8193e6') +
+#   labs(x = "Pays", y = "Nombre de win")
+# 
+# 
+# 
+# 
+# jours = df %>% 
+#   dplyr::group_by(Country_name,
+#                   country_code,
+#                   day) %>% 
+#   dplyr::summarise(total_click = sum(click),
+#                    total_win = dplyr::n(),
+#                    taux = round(total_click/total_clicks,4) *100) %>% 
+#   filter(total_click>0)
+# 
+# 
+# click = df %>% 
+#   filter(click ==1)
+# 
+# ggplot(df, aes(as.factor(click), fill = device_type_name)) +
+#   geom_bar(position= "fill") +
+#   stat_fill_labels() +
+#   labs(x = "Clique", y ="Pourcentage de clicks", fill = "Type d'OS") +
+#   scale_y_continuous(labels = percent)
+
+  
+
+
+
+
+
+# 
+# device_all = df_map %>% 
+#   filter(click == 1) %>% 
+#   group_by( event_device_make) %>% 
+#   dplyr::summarise(total = n())%>%
+#   arrange(desc(total))
+
+
+
+# ggplot(df_map, aes(x=creative_size))+
+#   geom_bar(position='identity', fill = "steelblue") +
+#   labs(x = "creative size ", y ="Nombre de cliques")
+

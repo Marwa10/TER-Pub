@@ -12,7 +12,7 @@ img{
 .main-header .logo {
   font-family: "Georgia", Times, "Times New Roman", serif;
   font-weight: bold;
-  font-size: 29px;
+  /*font-size: 29px;*/
 }
 
 .form-group.shiny-input-container {
