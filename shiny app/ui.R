@@ -11,8 +11,8 @@ sidebar <- dashboardSidebar(
   sidebarMenu(
   menuItem("Accueil", tabName = "acceuil", icon = icon("fas fa-home")),
   menuItem("Présentation", tabName = "presentation", icon = icon("far fa-address-card")),
-  menuItem("Axe utilisateur", tabName = "user", icon = icon("far fa-chart-bar")),
-  menuItem("Axe créative", tabName = "creative", icon = icon("far fa-chart-bar")),
+  menuItem("Axe User", tabName = "user", icon = icon("far fa-chart-bar")),
+  menuItem("Axe Creative", tabName = "creative", icon = icon("far fa-chart-bar")),
   menuItem("Cartographie", tabName = "carto", icon =  icon("fas fa-map-marked-alt")),
   menuItem("Modèles", tabName = "modeles", icon = icon("fas fa-laptop-code"))
   )
@@ -27,7 +27,8 @@ body <- dashboardBody(
   
   tabItems(
     tabItem(tabName = "acceuil",
-            img(src='darren-chan.jpg')
+            img(src='darren-chan.jpg'),
+            height = "auto"
  
     ),
     tabItem(tabName = "presentation",
@@ -53,7 +54,7 @@ body <- dashboardBody(
               hr(),
               h3("Encadrants:"), p("Faustine BOUSQUET, El hassan DAOUDI, Samy ZAROUR"),
               hr(),
-              h3("Jeu de données et source de données:"),p("Jeu de données sur une semaine fourni par TaBmo"),
+              h3("Jeu de données et source de données:"),p("Jeu de données sur un mois fourni par TaBmo"),
               hr(),
               h3("Objectif"),p("Prédiction des clics"),
               hr(),
@@ -98,7 +99,7 @@ body <- dashboardBody(
                       box(
                         title = "Répartition du type d'OS en fonction des clics( cliquée ou pas) ",
                         collapsible = TRUE,
-                        plotOutput("plot2")),
+                        plotlyOutput("plot2")),
                       box(
                         title = "Répartition du type d'appareil en fonction des clics( cliquée ou pas) ",
                         collapsible = TRUE,

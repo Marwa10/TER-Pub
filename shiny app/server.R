@@ -1,8 +1,5 @@
 library(shiny)
 library(dplyr)
-#ibrary(lubridate)
-
-#library(countrycode)
 library(DT)
 library(scales)
 library(JLutils)
@@ -11,50 +8,26 @@ library(plotly)
 source("map.R")
 
 
+
+
 shinyServer(function(input, output) {
 
   df = read.csv("data/one_month_data.csv")
-
   
+  df$creative_size = factor(df$creative_size, levels = c("300x50","300x100","300x250","300x600", "320x50","320x100","320x480",
+                                                         "480x320", "728x90" ,  "768x1024", "1024x768"))
   
-
-  data = read.csv("data/data_tab.csv", stringsAsFactors = FALSE)
-  data = data %>% 
-    filter(event_country != '')
-  
-  
-  data$device_type_name = ifelse(data$event_device_type == "1", "Mobile/Tablet",
-                                 ifelse(data$event_device_type == "2",  "Personal Computer",
-                                        ifelse(data$event_device_type == "3", "Connected TV",
-                                               ifelse(data$event_device_type == "4" , "Phone",
-                                                      ifelse(data$event_device_type == "5", "Tablet",
-                                                             ifelse(data$event_device_type == "6", "Connected Device",
-                                                                    ifelse(data$event_device_type == "7", "Set Top Box",
-                                                                           ifelse(data$event_device_type == "unknown", "Unknown","Unknown"))))))))
-  
-  
-  
-  data$country_name = countrycode(data$event_country, "iso3c", "un.name.en")
-  
-  data$day <- factor(data$day, levels = c("lundi", "mardi", "mercredi","jeudi", "vendredi", "samedi", "dimanche"))
-  
-  
-  clicks = data %>% 
-    filter(X..Event_type1....click.. == 1)
-  
-
-  
-  ### NEW DATASET###
   total_clicks = sum(df$click)
   
 
+  
   test = df %>% 
     dplyr::group_by(Country_name,
                     country_code,
                     Timestamp_hour) %>% 
     dplyr::summarise(total_click = sum(click),
                      total_win = dplyr::n(),
-                     taux = round(total_click/total_clicks,3)) %>% 
+                     taux = round(total_click/total_clicks,4)*100) %>% 
     filter(total_click >0)
   
   
@@ -97,13 +70,13 @@ shinyServer(function(input, output) {
   
   
 
-  output$plot2 <- renderPlot({
+  output$plot2 <- renderPlotly({
     if(input$s2 == "All" ){
-      dd = data
+      dd = df
     }else{
-      dd = filter(data, event_country %in% input$s2 )
+      dd = filter(df, country_code %in% input$s2 )
     }
-   ggplot(dd, aes(as.factor(X..Event_type1....click..), fill = event_os)) +
+   ggplot(dd, aes(as.factor(click), fill = os)) +
       geom_bar(position= "fill") +
       stat_fill_labels() +
       labs(x = "Clique", y ="Pourcentage de clicks", fill = "Type d'OS") +
@@ -153,31 +126,34 @@ shinyServer(function(input, output) {
       scale_y_continuous(labels = percent))
   })
   
+  device_owner = df %>% 
+    filter(click == 1) %>% 
+    group_by(country_code, device_make) %>% 
+    dplyr::summarise(total = n())%>%
+    arrange(desc(total))
   
-
   
+  output$table2 <-  DT::renderDataTable({
+    if(input$s2 == "All" ){
+      t =  device_owner
+    }else{
+      t= device_owner %>% 
+        filter(country_code == input$s2) 
+    }
+    
+    datatable(t, rownames = FALSE)
+  })
   
-  
- 
-
-          
   
   
 
   #Axe Creative
   
-  
-  
-  sites_all = clicks %>% 
-    group_by(event_app_site_name) %>% 
-    dplyr::summarise(total =n()) %>% 
+  sites_all = df %>% 
+    filter(click == 1) %>% 
+    group_by(country_code , app_site_name) %>%
+    dplyr::summarise(total =n()) %>%
     arrange(desc(total))
-  
-  sites = clicks %>% 
-    group_by(event_app_site_name,event_country) %>% 
-    dplyr::summarise(total = n()) %>% 
-    arrange(desc(total))
-  
   
   
   output$table <-  DT::renderDataTable({
@@ -185,8 +161,8 @@ shinyServer(function(input, output) {
       table <- sites_all %>% 
         head(input$slider1)
     }else{
-      table = sites %>% 
-        filter(event_country == input$s4) %>% 
+      table = sites_all %>% 
+        filter(country_code == input$s4) %>% 
         head(input$slider1)
     }
 
@@ -194,32 +170,9 @@ shinyServer(function(input, output) {
   })
   
   
-  device_make = data %>% 
-    filter(X..Event_type1....click.. == 1) %>% 
-    group_by(event_country, event_device_make) %>% 
-    dplyr::summarise(total = n())%>%
-    arrange(desc(total))
-  
-  
-  device_all = data %>% 
-    filter(X..Event_type1....click.. == 1) %>% 
-    group_by( event_device_make) %>% 
-    dplyr::summarise(total = n())%>%
-    arrange(desc(total))
 
   
-  output$table2 <-  DT::renderDataTable({
-    if(input$s4 == "All" ){
-      t <- device_all %>% 
-        head(input$slider1)
-    }else{
-      t= device_make %>% 
-        filter(event_country == input$s4) %>% 
-        head(input$slider1)
-    }
-    
-    datatable(t, rownames = FALSE)
-  })
+
   
   
   output$plot4 <- renderPlot({
@@ -237,39 +190,24 @@ shinyServer(function(input, output) {
   
   })
   
-  click_prix = data %>% 
-    filter(X..Event_type1....click.. == 1) %>% 
-    group_by(win_price_interval, event_country) %>% 
-    dplyr::summarise(total_click = n())
-  
-  
-  win_prix = data %>% 
-    group_by(win_price_interval, event_country) %>% 
-    dplyr::summarise(total_win = n())
-  
-  
-  
-  join_prix= inner_join(click_prix, win_prix , by = c("win_price_interval" = "win_price_interval" , "event_country" = "event_country"))
-  
-  join_prix$pourcentage = join_prix$total_click/join_prix$total_win
-  
-  
+  max_price = round(max(df$win_price))
+  df$win_interval = factor(df$win_interval, levels = c("0-0.2", "0.2-0.5", "0.5-0.8", "0.8-2","2-5", "5-10", "10-20", "20-30", paste("30-",max_price)) )
   
 
+  
   
   output$plot7 <- renderPlot({
     
     if(input$s4 == "All"){
-      prix = join_prix
+      prix = df
     }else{
-      prix = join_prix %>% 
-        filter(event_country == input$s4)
+      prix = df %>% 
+        filter(country_code == input$s4)
     }
     
-    
-    ggplot(prix, aes(x=win_price_interval, y=pourcentage, fill = event_country)) +
+    ggplot(prix, aes(x=win_interval, fill = country_code)) +
       labs(x = "prix de l'enchère", y = "Pourcentage de cliques", fill = "Pays") +
-      geom_bar(stat='identity')+
+      geom_bar(aes(y = (..count..)/sum(..count..))) +
       scale_y_continuous(labels = percent)
   
   })
@@ -280,14 +218,4 @@ shinyServer(function(input, output) {
     click_map
   })
 
-  # 
-  # output$map_win <- renderLeaflet({
-  #   win
-  # })
-  # 
-  
-  
-  
-  
-  
 })
