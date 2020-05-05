@@ -118,7 +118,6 @@ object cleaningData {
   }
 
   def cleanData(spark: SparkSession, fileToRead: String = "chemin", form: String = "csv"): DataFrame = {
-    // val listOfFiles: List[String] = getListOfFiles(dir = "/home/joseph/IdeaProjects/data_science/ressources")
     val new_df: DataFrame = readData(spark,fileToRead, form= form)
     val new_df_cleaning: DataFrame = removeColumns(spark,new_df)
     val new_df_one_row_per_id: DataFrame = oneRowPerAuction(spark: SparkSession, new_df_cleaning)
