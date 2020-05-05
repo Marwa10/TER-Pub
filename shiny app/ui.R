@@ -97,11 +97,11 @@ body <- dashboardBody(
                         collapsible = TRUE,
                         plotlyOutput("plot6")),
                       box(
-                        title = "Répartition du type d'OS en fonction des clics( cliquée ou pas) ",
+                        title = "Répartition du type d'OS en fonction des clics ",
                         collapsible = TRUE,
                         plotlyOutput("plot2")),
                       box(
-                        title = "Répartition du type d'appareil en fonction des clics( cliquée ou pas) ",
+                        title = "Répartition du type d'appareil en fonction des clics ",
                         collapsible = TRUE,
                         plotlyOutput("plot3"))),
                       
@@ -122,8 +122,8 @@ body <- dashboardBody(
                 width = 12,
                 collapsible = TRUE,
                 status = "warning",
-                sliderInput("slider1", label = h3("Nombre de sites à afficher"),
-                            min = 1, max = 50, value = 5),
+                #sliderInput("slider1", label = h3("Nombre de sites à afficher"),
+                #           min = 1, max = 50, value = 5),
                 selectInput("s4", label = h3("Pays"),
                             choices = list("All","AGO","ARE","AUS","AUT","BEL","BGD","BHR",
                                            "CAN","CHE","CHN","CIV","COL","DEU","DNK",

@@ -42,8 +42,9 @@ shinyServer(function(input, output) {
     
    ggplotly(ggplot(to_use, aes_string(x = to_use$Timestamp_hour  , y =to_use$taux ))+
       geom_line(aes(color = to_use$country_code)) +
-      labs(y=paste("Proportion des clics"), x= "Heure", color ="Pays") +
-      scale_y_continuous(labels = percent)) 
+      labs(y=paste("Proportion de clics"), x= "Heure", color ="Pays") + 
+        scale_y_continuous(labels = function(y) paste0(y, "%"))
+      ) 
   })
   
 
@@ -79,7 +80,7 @@ shinyServer(function(input, output) {
    ggplot(dd, aes(as.factor(click), fill = os)) +
       geom_bar(position= "fill") +
       stat_fill_labels() +
-      labs(x = "Clique", y ="Pourcentage de clicks", fill = "Type d'OS") +
+      labs(x = "Clics", y ="Pourcentage de clics", fill = "Type d'OS") +
       scale_y_continuous(labels = percent)
   })
   
@@ -95,35 +96,43 @@ shinyServer(function(input, output) {
     ggplotly(ggplot(dd, aes(as.factor(click), fill = device_type_name)) +
       geom_bar(position= "fill") +
       stat_fill_labels() +
-      labs( x = "Clique", y ="Pourcentage de click", fill = "Type d'appareil") +
+      labs( x = "Clics", y ="Pourcentage de clics", fill = "Type d'appareil") +
       scale_y_continuous(labels = percent))
       
   })
-  
-  
-  
   jours = df %>% 
+    dplyr::group_by(day) %>% 
+    dplyr::summarise(total_click = sum(click),
+                     total_win = dplyr::n(),
+                     taux = round(total_click/total_win,4) *100) 
+  
+  
+  jours_c = df %>% 
     dplyr::group_by(Country_name,
                     country_code,
                     day) %>% 
     dplyr::summarise(total_click = sum(click),
                      total_win = dplyr::n(),
-                     taux = round(total_click/total_clicks,4) *100) %>% 
+                     taux = round(total_click/total_win,3)) %>% 
     filter(total_click>0)
   
   
   
   output$plot6 <- renderPlotly({
     if(input$s2 == "All"){
-      data_jour = jours
+      ggplotly(ggplot(jours, aes(reorder(day,-taux), y=taux)) +
+                 geom_bar(stat='identity', fill = '#8193e6')+
+                 labs(y ="Proportion de clics", x = "Jours de la semaine")+
+                 scale_y_continuous(labels = function(y) paste0(y, "%"))) 
     }else{
-      data_jour = jours %>% 
+      data_jour = jours_c %>% 
         filter(country_code == input$s2)
+      ggplotly(ggplot(data_jour, aes(reorder(day,-taux), y=taux, fill = country_code)) +
+                 geom_bar(stat='identity')+
+                 labs(y ="Proportion de clics", x = "Jours de la semaine")+
+                 scale_y_continuous(labels = function(y) paste0(y, "%"))) 
     }
-    ggplotly(ggplot(data_jour, aes(x=day, y=taux, fill = country_code)) +
-      geom_bar(stat='identity')+
-      labs(y ="Proportion des clics", x = "Jours de la semaine") +
-      scale_y_continuous(labels = percent))
+
   })
   
   device_owner = df %>% 
@@ -150,7 +159,7 @@ shinyServer(function(input, output) {
   #Axe Creative
   
   sites_all = df %>% 
-    filter(click == 1) %>% 
+    filter(click == 1, app_site_name != "Unknown") %>% 
     group_by(country_code , app_site_name) %>%
     dplyr::summarise(total =n()) %>%
     arrange(desc(total))
@@ -158,12 +167,10 @@ shinyServer(function(input, output) {
   
   output$table <-  DT::renderDataTable({
     if(input$s4 == "All" ){
-      table <- sites_all %>% 
-        head(input$slider1)
+      table <- sites_all
     }else{
       table = sites_all %>% 
-        filter(country_code == input$s4) %>% 
-        head(input$slider1)
+        filter(country_code == input$s4) 
     }
 
     datatable(table, rownames = FALSE)
@@ -185,8 +192,8 @@ shinyServer(function(input, output) {
     
     
     ggplot(creative, aes(x=creative_size))+
-        geom_bar(position='identity', fill = "steelblue") +
-         labs(x = "creative size ", y ="Nombre de cliques")
+        geom_bar(position='identity',  fill = '#8193e6') +
+         labs(x = "creative size ", y ="Nombre de clics")
   
   })
   
@@ -199,16 +206,22 @@ shinyServer(function(input, output) {
   output$plot7 <- renderPlot({
     
     if(input$s4 == "All"){
-      prix = df
+      
+      ggplot(df, aes(x=win_interval)) +
+        labs(x = "prix de l'enchère", y = "Pourcentage de clics") +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        scale_y_continuous(labels = percent)
     }else{
       prix = df %>% 
         filter(country_code == input$s4)
+      
+      ggplot(prix, aes(x=win_interval, fill = country_code)) +
+        labs(x = "prix de l'enchère", y = "Pourcentage de clics", fill = "Pays") +
+        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        scale_y_continuous(labels = percent)
     }
     
-    ggplot(prix, aes(x=win_interval, fill = country_code)) +
-      labs(x = "prix de l'enchère", y = "Pourcentage de cliques", fill = "Pays") +
-      geom_bar(aes(y = (..count..)/sum(..count..))) +
-      scale_y_continuous(labels = percent)
+  
   
   })
   
