@@ -13,8 +13,8 @@ sidebar <- dashboardSidebar(
   menuItem("Présentation", tabName = "presentation", icon = icon("far fa-address-card")),
   menuItem("Axe User", tabName = "user", icon = icon("far fa-chart-bar")),
   menuItem("Axe Creative", tabName = "creative", icon = icon("far fa-chart-bar")),
-  menuItem("Cartographie", tabName = "carto", icon =  icon("fas fa-map-marked-alt")),
-  menuItem("Modèles", tabName = "modeles", icon = icon("fas fa-laptop-code"))
+  menuItem("Cartographie", tabName = "carto", icon =  icon("fas fa-map-marked-alt"))
+  #menuItem("Modèles", tabName = "modeles", icon = icon("fas fa-laptop-code"))
   )
 )
 
@@ -139,20 +139,19 @@ body <- dashboardBody(
               box(
                 title = "les sites qui génèrent le plus de clics",
                   collapsible = TRUE,
-                  hr(),
                   DT::dataTableOutput("table")),
               box(
                 title = "La répartition des publicités cliquées en fonction de leur taille", 
                 collapsible = TRUE,
-                plotOutput("plot4"))
+                plotlyOutput("plot4"))
               
           ),
           fluidRow(
                   
                   box(
-                    title = "Proportion des publicités cliquées en fonction de leur prix",
+                    title = "Proportion des publicités cliquées en fonction de leur prix($)",
                     width = 12,
-                    plotOutput("plot7"))
+                    plotlyOutput("plot7"))
           )
               
             ),

@@ -16,6 +16,7 @@ shinyServer(function(input, output) {
   
   df$creative_size = factor(df$creative_size, levels = c("300x50","300x100","300x250","300x600", "320x50","320x100","320x480",
                                                          "480x320", "728x90" ,  "768x1024", "1024x768"))
+  df$day <- factor(df$day, levels = c("Lundi", "Mardi", "Mercredi","Jeudi", "Vendredi", "Samedi", "Dimanche"))
   
   total_clicks = sum(df$click)
   
@@ -27,8 +28,7 @@ shinyServer(function(input, output) {
                     Timestamp_hour) %>% 
     dplyr::summarise(total_click = sum(click),
                      total_win = dplyr::n(),
-                     taux = round(total_click/total_clicks,4)*100) %>% 
-    filter(total_click >0)
+                     taux = round(total_click/total_clicks,4)*100) 
   
   
 
@@ -38,7 +38,12 @@ shinyServer(function(input, output) {
     }else{
       to_use = test %>% 
         filter(country_code == input$s2) 
+      validate(
+        need(!empty(to_use), label = "Aucun clic n'a été détecté pour ce pays!")
+      )
+      
     }
+  
     
    ggplotly(ggplot(to_use, aes_string(x = to_use$Timestamp_hour  , y =to_use$taux ))+
       geom_line(aes(color = to_use$country_code)) +
@@ -120,14 +125,18 @@ shinyServer(function(input, output) {
   
   output$plot6 <- renderPlotly({
     if(input$s2 == "All"){
-      ggplotly(ggplot(jours, aes(reorder(day,-taux), y=taux)) +
+      ggplotly(ggplot(jours, aes(day, y=taux)) +
                  geom_bar(stat='identity', fill = '#8193e6')+
                  labs(y ="Proportion de clics", x = "Jours de la semaine")+
                  scale_y_continuous(labels = function(y) paste0(y, "%"))) 
     }else{
       data_jour = jours_c %>% 
         filter(country_code == input$s2)
-      ggplotly(ggplot(data_jour, aes(reorder(day,-taux), y=taux, fill = country_code)) +
+      
+      validate(
+        need(!empty(data_jour), label = "Aucun clic n'a été détecté pour ce pays!")
+      )
+      ggplotly(ggplot(data_jour, aes(day, y=taux, fill = country_code)) +
                  geom_bar(stat='identity')+
                  labs(y ="Proportion de clics", x = "Jours de la semaine")+
                  scale_y_continuous(labels = function(y) paste0(y, "%"))) 
@@ -171,6 +180,9 @@ shinyServer(function(input, output) {
     }else{
       table = sites_all %>% 
         filter(country_code == input$s4) 
+      validate(
+        need(!empty(table), label = "Aucun clic n'a été détecté pour ce pays!")
+      )
     }
 
     datatable(table, rownames = FALSE)
@@ -182,12 +194,18 @@ shinyServer(function(input, output) {
 
   
   
-  output$plot4 <- renderPlot({
+  output$plot4 <- renderPlotly({
     if(input$s4 == "All"){
-      creative = df
+      creative = df %>% 
+        filter(click == 1)
     }else{
       creative = df %>% 
-        filter(country_code == input$s4)
+        filter(
+          click == 1,
+          country_code == input$s4)
+      validate(
+        need(!empty(creative), label = "Aucun clic n'a été détecté pour ce pays!")
+      )
     }
     
     
@@ -203,20 +221,26 @@ shinyServer(function(input, output) {
 
   
   
-  output$plot7 <- renderPlot({
+  output$plot7 <- renderPlotly({
     
     if(input$s4 == "All"){
-      
-      ggplot(df, aes(x=win_interval)) +
+      to_use = df %>% 
+        filter(click == 1)
+      ggplot(to_use, aes(x=win_interval)) +
         labs(x = "prix de l'enchère", y = "Pourcentage de clics") +
-        geom_bar(aes(y = (..count..)/sum(..count..))) +
+        geom_bar(aes(y = (..count..)/sum(..count..)),  fill = '#8193e6') +
         scale_y_continuous(labels = percent)
     }else{
       prix = df %>% 
-        filter(country_code == input$s4)
+        filter(
+          click == 1,
+          country_code == input$s4)
+      validate(
+        need(!empty(prix), label = "Aucun clic n'a été détecté pour ce pays!")
+      )
       
       ggplot(prix, aes(x=win_interval, fill = country_code)) +
-        labs(x = "prix de l'enchère", y = "Pourcentage de clics", fill = "Pays") +
+        labs(x = "prix de l'enchère ($)", y = "Pourcentage de clics", fill = "Pays") +
         geom_bar(aes(y = (..count..)/sum(..count..))) +
         scale_y_continuous(labels = percent)
     }
